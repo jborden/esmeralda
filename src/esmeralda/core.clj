@@ -29,14 +29,33 @@
        :graphics graphics
        :frame frame})))
 
-(def display-map
+(defonce display-map
   (display))
 
+;; https://docs.oracle.com/javase/7/docs/api/java/awt/Graphics.html
+;; for drawing methods
+
 (defn draw-dungeon-walls
-  [{:keys [graphics strategy]}]
-  (.setColor graphics java.awt.Color/BLACK)
-  (.fillRect graphics 0 0 width height)
-  (.show strategy)
-  (.setColor graphics java.awt.Color/BLUE)
-  (.drawRect graphics 10 10 (- width 20) (- height 20))
-  (.show strategy))
+  [display-map]
+  (let [{:keys [graphics strategy]} display-map]
+    (.setColor graphics java.awt.Color/BLACK)
+    (.fillRect graphics 0 0 width height)
+    (.show strategy)
+    (.setColor graphics java.awt.Color/BLUE)
+    (.drawRect graphics 10 10 (- width 20) (- height 20))
+    (.show strategy)
+    display-map))
+
+(defn draw-hero
+  [display-map]
+  (let [{:keys [graphics strategy]} display-map
+        oval-width 100
+        oval-height 100]
+    (.setColor graphics java.awt.Color/RED)
+    (.drawOval graphics
+               (- (/ width 2) (/ oval-width 2))
+               (- (- height 100) (/ oval-height 2))
+               oval-width
+               oval-height)
+    (.show strategy)
+    display-map))
