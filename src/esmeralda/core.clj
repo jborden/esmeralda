@@ -1,14 +1,39 @@
 (ns esmeralda.core
   (:import [java.awt Canvas GraphicsEnvironment BorderLayout]
-           [javax.swing JFrame]))
+           [javax.swing JFrame]
+           [java.awt.event KeyListener KeyEvent]))
 
 (def width 800)
 (def height 600)
+
+(def key-map {87 :w
+              65 :a
+              83 :s
+              68 :d
+              38 :up-arrow
+              37 :left-arrow
+              40 :down-arrow
+              39 :right-arrow
+              32 :space-key
+              8 :del-key
+              10 :return})
+
+(def key-start (atom
+                (apply hash-map (interleave (vals key-map) (repeat false)))))
+
+(defn key-listener
+  []
+  (proxy [KeyListener] []
+    (keyPressed [^KeyEvent e]
+      (swap! key-state assoc (get key-map (.getKeyCode e)) true))
+    (keyReleased [^KeyEvent e]
+      (swap! key-state assoc (get key-map (.getKeyCode e)) false))))
 
 (defn canvas
   [width height]
   (let [canvas (new java.awt.Canvas)]
     (.setSize canvas width height)
+    (.addKeyListener canvas (key-listener))
     canvas))
 
 (defn display
@@ -29,7 +54,7 @@
        :graphics graphics
        :frame frame})))
 
-(defonce display-map
+(def display-map
   (display))
 
 ;; https://docs.oracle.com/javase/7/docs/api/java/awt/Graphics.html
