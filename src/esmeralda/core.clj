@@ -3,8 +3,13 @@
            [javax.swing JFrame]
            [java.awt.event KeyListener KeyEvent]))
 
-(def width 800)
-(def height 600)
+(def screen-width 800)
+(def screen-height 600)
+
+(def dungeon-width (- screen-width 20))
+(def dungeon-height (- screen-height 20))
+
+(def game-over? false)
 
 (def key-map {87 :w
               65 :a
@@ -18,7 +23,7 @@
               8 :del-key
               10 :return})
 
-(def key-start (atom
+(def key-state (atom
                 (apply hash-map (interleave (vals key-map) (repeat false)))))
 
 (defn key-listener
@@ -30,15 +35,15 @@
       (swap! key-state assoc (get key-map (.getKeyCode e)) false))))
 
 (defn canvas
-  [width height]
+  [screen-width screen-height]
   (let [canvas (new java.awt.Canvas)]
-    (.setSize canvas width height)
+    (.setSize canvas screen-width screen-height)
     (.addKeyListener canvas (key-listener))
     canvas))
 
 (defn display
   []
-  (let [canvas (canvas width height)
+  (let [canvas (canvas screen-width screen-height)
         frame (new JFrame "FrameDemo")]
     (.add (.getContentPane frame) canvas)
     (doto frame
@@ -64,23 +69,66 @@
   [display-map]
   (let [{:keys [graphics strategy]} display-map]
     (.setColor graphics java.awt.Color/BLACK)
-    (.fillRect graphics 0 0 width height)
-    (.show strategy)
+    (.fillRect graphics 0 0 screen-width screen-height)
+    ;;(.show strategy)
     (.setColor graphics java.awt.Color/BLUE)
-    (.drawRect graphics 10 10 (- width 20) (- height 20))
-    (.show strategy)
+    (.drawRect graphics 10 10 dungeon-width dungeon-height)
+    ;;(.show strategy)
     display-map))
+
+(def hero
+  (let [oval-width 100
+        oval-height 100]
+    (atom {:oval-width oval-width
+           :oval-height oval-height
+           :x (- (/ screen-width 2) (/ oval-width 2))
+           :y (- (- screen-height 100) (/ oval-height 2))
+           })))
 
 (defn draw-hero
   [display-map]
-  (let [{:keys [graphics strategy]} display-map
-        oval-width 100
-        oval-height 100]
+  (let [{:keys [graphics strategy]} display-map]
     (.setColor graphics java.awt.Color/RED)
     (.drawOval graphics
-               (- (/ width 2) (/ oval-width 2))
-               (- (- height 100) (/ oval-height 2))
-               oval-width
-               oval-height)
-    (.show strategy)
+               (:x @hero)
+               (:y @hero)
+               (:oval-width @hero)
+               (:oval-height @hero))
+    ;;(.show strategy)
     display-map))
+
+(defn update-hero!
+  "Given hero and key-state atoms, update hero"
+  [hero key-state]
+  (let [delta-d 1]
+    (when (:w @key-state)
+      (swap! hero assoc :y (- (:y @hero) delta-d)))
+    (when (:s @key-state)
+      (swap! hero assoc :y (+ (:y @hero) delta-d)))
+    (when (:d @key-state)
+      (swap! hero assoc :x (+ (:x @hero) delta-d)))
+    (when (:a @key-state)
+      (swap! hero assoc :x (- (:x @hero) delta-d)))))
+
+(defn game-loop
+  [current-time previous-time]
+  ;; update positions
+  (update-hero! hero key-state)
+  ;; draw to the buffer
+  (-> display-map
+      (draw-dungeon-walls)
+      (draw-hero))
+  ;; refresh the display
+  ;;(.dispose (:graphics display-map))
+  (.show (:strategy display-map))
+  ;; refresh the display
+  ;;(.dispose (:graphics display-map))
+  )
+
+(defn main-loop
+  []
+  (loop [current-time (System/currentTimeMillis)
+         previous-time nil]
+    (game-loop current-time previous-time)
+    (if (not game-over?)
+      (recur (System/currentTimeMillis) current-time))))
