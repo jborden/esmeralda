@@ -1,6 +1,7 @@
 (ns esmeralda.core
   (:import [java.awt Canvas GraphicsEnvironment BorderLayout]
            [javax.swing JFrame]
+           [java.awt Font]
            [java.awt.event KeyListener KeyEvent]))
 
 (def screen-width 800)
@@ -26,12 +27,19 @@
 (def key-state (atom
                 (apply hash-map (interleave (vals key-map) (repeat false)))))
 
+(def pressed (atom 1))
+(def released (atom 1))
+
 (defn key-listener
   []
   (proxy [KeyListener] []
-    (keyPressed [^KeyEvent e]
+    (keyPressed [e]
+      (swap! pressed inc)
+      (println (str "pressed " @pressed ": " (get key-map (.getKeyCode e))))
       (swap! key-state assoc (get key-map (.getKeyCode e)) true))
-    (keyReleased [^KeyEvent e]
+    (keyReleased [e]
+      (swap! released inc)
+      (println (str "released " @released ": " (get key-map (.getKeyCode e))))
       (swap! key-state assoc (get key-map (.getKeyCode e)) false))))
 
 (defn canvas
@@ -100,7 +108,7 @@
 (defn update-hero!
   "Given hero and key-state atoms, update hero"
   [hero key-state]
-  (let [delta-d 1]
+  (let [delta-d 20]
     (when (:w @key-state)
       (swap! hero assoc :y (- (:y @hero) delta-d)))
     (when (:s @key-state)
@@ -110,6 +118,15 @@
     (when (:a @key-state)
       (swap! hero assoc :x (- (:x @hero) delta-d)))))
 
+(defn draw-state
+  [display-map]
+  (let [{:keys [graphics]} display-map]
+    (doto graphics
+      (.setFont (new Font "Courier" (Font/PLAIN) 20))
+      (.drawString (str "w: " (:w @key-state)) 30 30)
+      (.drawString (str "s: " (:s @key-state)) 30 60))
+    display-map))
+
 (defn game-loop
   [current-time previous-time]
   ;; update positions
@@ -117,7 +134,8 @@
   ;; draw to the buffer
   (-> display-map
       (draw-dungeon-walls)
-      (draw-hero))
+      (draw-hero)
+      (draw-state))
   ;; refresh the display
   ;;(.dispose (:graphics display-map))
   (.show (:strategy display-map))
@@ -130,5 +148,12 @@
   (loop [current-time (System/currentTimeMillis)
          previous-time nil]
     (game-loop current-time previous-time)
+    ;; this is NOT efficient!
+    ;; | sleep time | % CPU  |
+    ;; |        nil | 270%   |
+    ;; |         10 | ~60%   |
+    ;; |         50 | ~16%   | but framerate is horrendous
+    ;; |        100 | ~10%   |
+    (Thread/sleep 50)
     (if (not game-over?)
       (recur (System/currentTimeMillis) current-time))))
